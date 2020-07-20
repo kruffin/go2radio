@@ -1,0 +1,6 @@
+[submodule "lib/ugui"]
+	path = lib/ugui
+	url = https://github.com/kruffin/UGUI.git
+[submodule "lib/ngsoftfm"]
+	path = lib/ngsoftfm
+	url = https://github.com/kruffin/ngsoftfm.git
