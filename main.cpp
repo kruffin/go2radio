@@ -8,6 +8,9 @@
 
 void initGo2();
 void destroyGo2();
+void initUgui();
+void destroyUgui();
+void go2_present();
 
 // libgo2 stuff
 go2_gamepad_state_t outGamepadState;
@@ -19,35 +22,55 @@ go2_input_t* input;
 uint32_t color_format;
 int height;
 int width;
-int bits_per_pixel;
+int bytes_per_pixel;
 
 // ugui stuff
+UG_GUI gui;
 UG_WINDOW mainWindow;
+
+bool dirty_display = false;
 
 int main() {
 
 	initGo2();
+	initUgui();
 
 	while(1) {
 		go2_input_gamepad_read(input,&outGamepadState);
 		if (outGamepadState.buttons.f1) {
 			std::cout << "f1";
 			destroyGo2();
+			destroyUgui();
 			return 0;
 		}
+
+		if (dirty_display) {
+			go2_present();
+			dirty_display = false;
+		}
 	}
+}
+
+void go2_present() {
+	go2_presenter_post(presenter, surface, 
+						0, 0, width, height,
+						0, 0, height, width,
+						GO2_ROTATION_DEGREES_270);
+	std::cout << "drawing buffer" << std::endl;
 }
 
 void initGo2() {
 	input = go2_input_create();
 
 	display = go2_display_create();
-	presenter = go2_presenter_create(display, DRM_FORMAT_RGB565, 0xff080808); // ABGR
+	presenter = go2_presenter_create(display, DRM_FORMAT_RGB565, 0xff00ff00); // ABGR
 	height = go2_display_height_get(display);
 	width = go2_display_width_get(display);
-    surface = go2_surface_create(display, width, height, color_format);
+    surface = go2_surface_create(display, width, height, DRM_FORMAT_RGB565);
 
-    bits_per_pixel = go2_drm_format_get_bpp(go2_surface_format_get(surface)) / 8;
+    bytes_per_pixel = go2_drm_format_get_bpp(go2_surface_format_get(surface)) / 8;
+
+    go2_display_backlight_set(display, (uint32_t)50);
 }
 
 void destroyGo2() {
@@ -58,8 +81,32 @@ void destroyGo2() {
 }
 
 void go2SetPixel(UG_S16 x, UG_S16 y, UG_COLOR c) {
-
 	uint8_t* dst = (uint8_t*)go2_surface_map(surface);
-	// TODO: figure out how to turn this ug color into rgb565...
-	dst[bits_per_pixel * (y * width + x)] = 0;
+	
+	for (int byte = 0; byte < bytes_per_pixel; byte++) {
+		dst[bytes_per_pixel * (y * width + x) + byte] = c >> byte * 4 | 0xFF;
+	}
+
+	dirty_display = true;
+
+	// std::cout << "drawing pixel " << c << std::endl;
+}
+
+void initUgui() {
+	std::cout << "screen width: " << width << ", height: " << height << std::endl;
+	UG_Init(&gui, go2SetPixel, width, height);
+	UG_FontSelect(&FONT_8X14);
+	UG_FillScreen(C_ROSY_BROWN);
+
+	std::string str = "Go 2 Radio";
+	char c[str.size() + 1];
+	str.copy(c, str.size() + 1);
+	c[str.size()] = '\0';
+
+	UG_SetForecolor(C_HOT_PINK);
+	UG_PutString(20, 20, c);
+}
+
+void destroyUgui() {
+
 }
