@@ -56,7 +56,7 @@ void go2_present() {
 	go2_presenter_post(presenter, surface, 
 						0, 0, width, height,
 						0, 0, width, height,
-						GO2_ROTATION_DEGREES_270);
+						GO2_ROTATION_DEGREES_0);
 	std::cout << "drawing buffer" << std::endl;
 }
 
@@ -86,7 +86,19 @@ void destroyGo2() {
 void go2SetPixel(UG_S16 x, UG_S16 y, UG_COLOR c) {
 	uint8_t* dst = (uint8_t*)go2_surface_map(surface);
 	
-	memcpy(dst + (y * go2_surface_stride_get(surface) + x*bytes_per_pixel), (unsigned char*)&c, sizeof(c));
+	// swap the x and y while translating x
+	// [*][ ][ ][ ]
+	// [ ][ ][ ][ ]
+	// to:
+	// [*][ ]
+	// [ ][ ]
+	// [ ][ ]
+	// [ ][ ]
+
+	UG_S16 yfinal = height - 1 - x;
+	UG_S16 xfinal = y;
+	// std::cout << "drawing pixel og(" << x << "," << y << ") trans(" << xfinal << "," << yfinal << ")" << std::endl;
+	memcpy(dst + (yfinal * go2_surface_stride_get(surface) + xfinal*bytes_per_pixel), (unsigned char*)&c, sizeof(c));
 
 	dirty_display = true;
 
@@ -95,7 +107,8 @@ void go2SetPixel(UG_S16 x, UG_S16 y, UG_COLOR c) {
 
 void initUgui() {
 	std::cout << "screen width: " << width << ", height: " << height << std::endl;
-	UG_Init(&gui, go2SetPixel, width, height);
+	// swap dimensions so ui surface is correct for rotated screen
+	UG_Init(&gui, go2SetPixel, height, width); 
 	UG_FontSelect(&FONT_22X36);
 	UG_FillScreen(C_DARK_GOLDEN_ROD);
 
@@ -111,7 +124,7 @@ void initUgui() {
 	UG_FontSelect(&FONT_8X14);
 	UG_SetForecolor(C_BLACK);
 	char exit[] = "F1 = Exit";
-	UG_PutString(20, height-34, exit);
+	UG_PutString(20, width-34, exit);
 
 }
 
