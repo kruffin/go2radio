@@ -1,5 +1,7 @@
-CC=g++ -fpermissive
-target = go2radio
+CC=g++
+CXXFLAGS=-std=c++17
+CFLAGS=-fpermissive
+target=go2radio
 
 SRCS=$(wildcard *.cpp)
 SRCS+=$(wildcard *.c)
@@ -11,10 +13,10 @@ INCLUDE = -I/usr/local/include/
 LIB = -L/usr/local/lib/ -lgo2
 
 all:$(OBJS)
-	$(CC) $(OBJS) -o $(target) $(LIB)
+	$(CC) $(CXXFLAGS) $(OBJS) -o $(target) $(LIB)
 
-%.o:%.c %.cpp
-	$(CC) -c $< -o $@  $(INCLUDE)
+%.o :%.c %.cpp
+	$(CC) $(CXXFLAGS) -c $< -o $@  $(INCLUDE)
 
 clean:
 	rm $(OBJS) $(target) -f

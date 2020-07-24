@@ -7,6 +7,8 @@
 #include <iostream>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <filesystem>
+namespace fs = std::filesystem::__cxx11;
 
 #include "lib/ugui/ugui.h"
 
@@ -39,18 +41,27 @@ bool dirty_display = true;
 int MAX_FREQ = 1070;
 int MIN_FREQ = 881;
 int frequency = 881;
+int frequency_temp = 881;
 
 // For handling button inputs
 clock_t last_press;
 clock_t current_press;
 clock_t held_since;
 
-char fm_program[] = "lib/ngsoftfm/build/softfm";
+clock_t run_time;
+
+char fm_program_relative[] = "lib/ngsoftfm/build/softfm";
 char fm_program_args[] = "-t rtlsdr -c %d00000";
 pid_t fm_pid = -1;
+const char *fm_program;
 
-int main() {
+int main(int argc, char * argv[]) {
+	fs::path progPath = fs::path(argv[0]);
+	progPath.remove_filename();
+	progPath += fm_program_relative;
+	fm_program = progPath.c_str();
 
+	// std::cout << argv[0] << "|" << fm_program << std::endl;
 	initGo2();
 	initUgui();
 	last_press = clock();
@@ -72,9 +83,9 @@ int main() {
 				increment = 10;
 			}
 			if (outGamepadState.dpad.left) {
-				frequency -= increment;
-				if (frequency < MIN_FREQ) {
-					frequency = MAX_FREQ;
+				frequency_temp -= increment;
+				if (frequency_temp < MIN_FREQ) {
+					frequency_temp = MAX_FREQ;
 				}
 				dirty_display = true;
 				last_press = current_press;
@@ -83,9 +94,9 @@ int main() {
 				}
 			}
 			if (outGamepadState.dpad.right) {
-				frequency += increment;
-				if (frequency > MAX_FREQ) {
-					frequency = MIN_FREQ;
+				frequency_temp += increment;
+				if (frequency_temp > MAX_FREQ) {
+					frequency_temp = MIN_FREQ;
 				}
 				dirty_display = true;
 				last_press = current_press;
@@ -97,8 +108,22 @@ int main() {
 			if (held_since != -1 && current_press != last_press) {
 				// No buttons held
 				held_since = -1;
-				tuneRadio(frequency);
+				//tuneRadio(frequency);
 				// std::cout << "held since reset c(" << current_press << ") l(" << last_press << ")" << std::endl;
+			}
+
+			if (outGamepadState.buttons.a) {
+				frequency = frequency_temp;
+				tuneRadio(frequency);
+				dirty_display = true;
+			}
+			if (outGamepadState.buttons.b) {
+				frequency_temp = frequency;
+				dirty_display = true;
+			}
+			if (outGamepadState.buttons.x) {
+				killRadio();
+				dirty_display = true;
 			}
 		}
 
@@ -113,13 +138,16 @@ int main() {
 void killRadio() {
 	if (fm_pid != -1) {
 		// Kill it
-		kill(fm_pid, SIGKILL);
+		while( double(clock() - run_time)/double(CLOCKS_PER_SEC) < 5.0 || -1 == kill(fm_pid, SIGKILL) ) {
+			// std::cerr << "Failed to kill process [" << fm_pid << "] " << std::strerror(errno);
+		}
 		fm_pid = -1;
 	}
 }
 
 void tuneRadio(int freq) {
 	killRadio();
+	run_time = clock();
 
 	// int filedes[2];
 	// if (pipe(filedes) == -1) {
@@ -138,8 +166,8 @@ void tuneRadio(int freq) {
 			// close(filedes[0]);
 			char freqStr[50];
 			sprintf(freqStr, "freq=%d00000", freq);
-			std::cout << "euid: " << geteuid() << "uid: " << getuid()  << " frequency: " << freqStr << std::endl;
-			execl(fm_program, "softfm", "-t", "rtlsdr", "-c", freqStr, (char *) NULL);
+			// std::cout << "euid: " << geteuid() << "uid: " << getuid()  << " frequency: " << freqStr << std::endl;
+			execl(fm_program, "softfm", "-t", "rtlsdr", "-q", "-c", freqStr, (char *) NULL);
 			std::cerr << "execl() failed to run: " << fm_program << std::endl;
 			exit(1);
 		// default:
@@ -164,7 +192,7 @@ void go2_present() {
 						0, 0, width, height,
 						0, 0, width, height,
 						GO2_ROTATION_DEGREES_0);
-	std::cout << "drawing buffer" << std::endl;
+	// std::cout << "drawing buffer" << std::endl;
 }
 
 void initGo2() {
@@ -194,13 +222,14 @@ void go2SetPixel(UG_S16 x, UG_S16 y, UG_COLOR c) {
 	uint8_t* dst = (uint8_t*)go2_surface_map(surface);
 	
 	// swap the x and y while translating x
-	// [*][ ][ ][ ]
-	// [ ][ ][ ][ ]
+	// →[*][ ][ ][ ]
+	//  [ ][ ][ ][ ]
 	// to:
-	// [ ][*]
-	// [ ][ ]
-	// [ ][ ]
-	// [ ][ ]
+	//  [ ][*]
+	//  [ ][ ]
+	//  [ ][ ]
+	//  [ ][ ]
+	//      ↑
 
 	UG_S16 yfinal = height - 1 - x;
 	UG_S16 xfinal = y;
@@ -210,6 +239,14 @@ void go2SetPixel(UG_S16 x, UG_S16 y, UG_COLOR c) {
 	dirty_display = true;
 
 	// std::cout << "drawing pixel " << c << std::endl;
+}
+
+void format_frequency(int freq, char *output) {
+	int len = sprintf(output, "%d", freq);
+	// Shift chars by 1 and add a '.'
+	output[len] = output[len-1];
+	output[len-1] = '.';
+	output[len+1] = '\0';
 }
 
 void drawScreen() {
@@ -223,22 +260,39 @@ void drawScreen() {
 
 	UG_FontSelect(&FONT_32X53);
 	char freq[6];
-	int len = sprintf(freq, "%d", frequency);
-	// Shift chars by 1 and add a '.'
-	freq[len] = freq[len-1];
-	freq[len-1] = '.';
-	freq[len+1] = '\0';
+	format_frequency(frequency, (char *)freq);
 	UG_PutString(20, width/2-53, freq);
 
+	if (frequency_temp != frequency) {
+		// Only draw if attempting to tune
+		UG_FontSelect(&FONT_8X14);
+		format_frequency(frequency_temp, (char *)freq);
+		UG_PutString(25, width/2, freq);
+	}
+
+	if (-1 != fm_pid) {
+		UG_FontSelect(&FONT_22X36);
+		char music[2];
+		sprintf(music, "%c", char(14));
+		UG_PutString(height-36 - strlen(music)*36, 20, music);
+	}
 
 	UG_FontSelect(&FONT_8X8);
 	UG_SetForecolor(C_BLACK);
-	char exit[] = "F1 = Exit";
+	char exit[] = "f1=exit";
 	UG_PutString(20, width-28, exit);
+
+	char tuneText[8];
+	sprintf(tuneText, "%ctune%c", char(27), char(26));
+	// std::cout << "! = " << int('!') << std::endl;
+	UG_PutString(40 + strlen(exit) * 8, width-28, tuneText);
+
+	char selectText[] = "a=select  b=cancel  x=stop tune";
+	UG_PutString(60 + (strlen(exit) + strlen(tuneText)) * 8, width-28, selectText);
 }
 
 void initUgui() {
-	std::cout << "screen width: " << width << ", height: " << height << std::endl;
+	// std::cout << "screen width: " << width << ", height: " << height << std::endl;
 	// swap dimensions so ui surface is correct for rotated screen
 	UG_Init(&gui, go2SetPixel, height, width); 
 }
