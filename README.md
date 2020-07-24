@@ -5,10 +5,10 @@ This repo is an attempt to make something a little nicer than the hacked up scri
 
 This program should minimally:
 
-[X] Allow a FM radio station to be played.
-[X] Allow the changing of the station using the controller.
-[ ] Allow changing the volume.
-[X] Show what station is playing.
+- [X] Allow a FM radio station to be played.
+- [X] Allow the changing of the station using the controller.
+- [ ] Allow changing the volume.
+- [X] Show what station is playing.
 
 ![Go 2 Radio](/docs/go2radio_web.jpg)
 
