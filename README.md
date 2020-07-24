@@ -5,10 +5,12 @@ This repo is an attempt to make something a little nicer than the hacked up scri
 
 This program should minimally:
 
-[ ] Allow a FM radio station to be played.
-[ ] Allow the changing of the station using the controller.
+[X] Allow a FM radio station to be played.
+[X] Allow the changing of the station using the controller.
 [ ] Allow changing the volume.
-[ ] Show what station is playing.
+[X] Show what station is playing.
+
+![Go 2 Radio](/docs/go2radio_web.png)
 
 ## External Requirements
 This also requires some RTL-SDR USB device to plug into the Go Advance. I'm using one from Adafruit from here: https://www.adafruit.com/product/1497 There are tons of these things around, so that particular one isn't a requirement; but you must have one.
