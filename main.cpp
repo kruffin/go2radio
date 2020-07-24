@@ -5,6 +5,9 @@
 #include <cstring>
 #include <stdlib.h>
 #include <iostream>
+#include <sys/wait.h>
+#include <unistd.h>
+
 #include "lib/ugui/ugui.h"
 
 void initGo2();
@@ -12,6 +15,9 @@ void destroyGo2();
 void initUgui();
 void destroyUgui();
 void go2_present();
+void drawScreen();
+void tuneRadio(int freq);
+void killRadio();
 
 // libgo2 stuff
 go2_gamepad_state_t outGamepadState;
@@ -29,26 +35,127 @@ int bytes_per_pixel;
 UG_GUI gui;
 UG_WINDOW mainWindow;
 
-bool dirty_display = false;
+bool dirty_display = true;
+int MAX_FREQ = 1070;
+int MIN_FREQ = 881;
+int frequency = 881;
+
+// For handling button inputs
+clock_t last_press;
+clock_t current_press;
+clock_t held_since;
+
+char fm_program[] = "lib/ngsoftfm/build/softfm";
+char fm_program_args[] = "-t rtlsdr -c %d00000";
+pid_t fm_pid = -1;
 
 int main() {
 
 	initGo2();
 	initUgui();
+	last_press = clock();
 
 	while(1) {
 		go2_input_gamepad_read(input,&outGamepadState);
 		if (outGamepadState.buttons.f1) {
 			std::cout << "f1";
+			killRadio();
 			destroyGo2();
 			destroyUgui();
 			return 0;
 		}
+		current_press = clock();
+		double diff = double(current_press - last_press) / double(CLOCKS_PER_SEC);
+		if (diff > 0.15) {
+			int increment = 1;
+			if (held_since != -1 && double(current_press - held_since) / double(CLOCKS_PER_SEC) > 2.0) {
+				increment = 10;
+			}
+			if (outGamepadState.dpad.left) {
+				frequency -= increment;
+				if (frequency < MIN_FREQ) {
+					frequency = MAX_FREQ;
+				}
+				dirty_display = true;
+				last_press = current_press;
+				if (held_since == -1) {
+					held_since = last_press;
+				}
+			}
+			if (outGamepadState.dpad.right) {
+				frequency += increment;
+				if (frequency > MAX_FREQ) {
+					frequency = MIN_FREQ;
+				}
+				dirty_display = true;
+				last_press = current_press;
+				if (held_since == -1) {
+					held_since = last_press;
+				}
+			}
+
+			if (held_since != -1 && current_press != last_press) {
+				// No buttons held
+				held_since = -1;
+				tuneRadio(frequency);
+				// std::cout << "held since reset c(" << current_press << ") l(" << last_press << ")" << std::endl;
+			}
+		}
 
 		if (dirty_display) {
+			drawScreen();
 			go2_present();
 			dirty_display = false;
 		}
+	}
+}
+
+void killRadio() {
+	if (fm_pid != -1) {
+		// Kill it
+		kill(fm_pid, SIGKILL);
+		fm_pid = -1;
+	}
+}
+
+void tuneRadio(int freq) {
+	killRadio();
+
+	// int filedes[2];
+	// if (pipe(filedes) == -1) {
+	// 	std::cerr << "Failed to create a pipe." << std::endl;
+	// 	exit(1);
+	// }
+
+	fm_pid = fork();
+	switch (fm_pid) {
+		case -1:
+			std::cerr << "Failed to fork process." << std::endl;
+			exit(1);
+		case 0:
+			// while( (dup2(filedes[1], STDOUT_FILENO) == -1) && (errno == EINTR) ) {}
+			// close(filedes[1]);
+			// close(filedes[0]);
+			char freqStr[50];
+			sprintf(freqStr, "freq=%d00000", freq);
+			std::cout << "euid: " << geteuid() << "uid: " << getuid()  << " frequency: " << freqStr << std::endl;
+			execl(fm_program, "softfm", "-t", "rtlsdr", "-c", freqStr, (char *) NULL);
+			std::cerr << "execl() failed to run: " << fm_program << std::endl;
+			exit(1);
+		// default:
+			// close(filedes[1]);
+			// char buff[4096];
+			// clock_t start = clock();
+			// while ( double(clock() - start) / double(CLOCKS_PER_SEC) < 5.0) {
+			// 	ssize_t count = read(filedes[0], buff, sizeof(buff));
+			// 	if (count == -1 && errno != EINTR) {
+			// 		break;
+			// 	} else if (count > 0) {
+			// 		std::cout << buff;
+			// 		break;
+			// 	}
+			// }
+			// close(filedes[0]);
 	}
 }
 
@@ -105,27 +212,35 @@ void go2SetPixel(UG_S16 x, UG_S16 y, UG_COLOR c) {
 	// std::cout << "drawing pixel " << c << std::endl;
 }
 
+void drawScreen() {
+	UG_FontSelect(&FONT_22X36);
+	UG_FillScreen(C_DARK_GOLDEN_ROD);
+
+	char title[] = "Go 2 Radio";
+	UG_SetForecolor(C_DARK_OLIVE_GREEN);
+	UG_SetBackcolor(C_DARK_GOLDEN_ROD);
+	UG_PutString(20, 20, title);
+
+	UG_FontSelect(&FONT_32X53);
+	char freq[6];
+	int len = sprintf(freq, "%d", frequency);
+	// Shift chars by 1 and add a '.'
+	freq[len] = freq[len-1];
+	freq[len-1] = '.';
+	freq[len+1] = '\0';
+	UG_PutString(20, width/2-53, freq);
+
+
+	UG_FontSelect(&FONT_8X8);
+	UG_SetForecolor(C_BLACK);
+	char exit[] = "F1 = Exit";
+	UG_PutString(20, width-28, exit);
+}
+
 void initUgui() {
 	std::cout << "screen width: " << width << ", height: " << height << std::endl;
 	// swap dimensions so ui surface is correct for rotated screen
 	UG_Init(&gui, go2SetPixel, height, width); 
-	UG_FontSelect(&FONT_22X36);
-	UG_FillScreen(C_DARK_GOLDEN_ROD);
-
-	std::string str = "Go 2 Radio";
-	char c[str.size() + 1];
-	str.copy(c, str.size() + 1);
-	c[str.size()] = '\0';
-
-	UG_SetForecolor(C_DARK_OLIVE_GREEN);
-	UG_SetBackcolor(C_DARK_GOLDEN_ROD);
-	UG_PutString(20, 20, c);
-
-	UG_FontSelect(&FONT_8X14);
-	UG_SetForecolor(C_BLACK);
-	char exit[] = "F1 = Exit";
-	UG_PutString(20, width-34, exit);
-
 }
 
 void destroyUgui() {
