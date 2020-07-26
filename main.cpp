@@ -113,17 +113,23 @@ int main(int argc, char * argv[]) {
 			}
 
 			if (outGamepadState.buttons.a) {
-				frequency = frequency_temp;
-				tuneRadio(frequency);
-				dirty_display = true;
+				if (! (frequency == frequency_temp && -1 != fm_pid)) {
+					// It's already tuned to this frequency.
+					frequency = frequency_temp;
+					tuneRadio(frequency);
+					dirty_display = true;
+					last_press = current_press;
+				}
 			}
 			if (outGamepadState.buttons.b) {
 				frequency_temp = frequency;
 				dirty_display = true;
+				last_press = current_press;
 			}
 			if (outGamepadState.buttons.x) {
 				killRadio();
 				dirty_display = true;
+				last_press = current_press;
 			}
 		}
 
