@@ -47,6 +47,7 @@ int frequency_temp = 881;
 clock_t last_press;
 clock_t current_press;
 clock_t held_since;
+clock_t idle_since;
 
 clock_t run_time;
 
@@ -65,6 +66,7 @@ int main(int argc, char * argv[]) {
 	initGo2();
 	initUgui();
 	last_press = clock();
+	idle_since = clock();
 
 	while(1) {
 		go2_input_gamepad_read(input,&outGamepadState);
@@ -89,6 +91,7 @@ int main(int argc, char * argv[]) {
 				}
 				dirty_display = true;
 				last_press = current_press;
+				idle_since = current_press;
 				if (held_since == -1) {
 					held_since = last_press;
 				}
@@ -100,6 +103,7 @@ int main(int argc, char * argv[]) {
 				}
 				dirty_display = true;
 				last_press = current_press;
+				idle_since = current_press;
 				if (held_since == -1) {
 					held_since = last_press;
 				}
@@ -120,17 +124,27 @@ int main(int argc, char * argv[]) {
 					dirty_display = true;
 					last_press = current_press;
 				}
+				idle_since = current_press;
 			}
 			if (outGamepadState.buttons.b) {
 				frequency_temp = frequency;
 				dirty_display = true;
 				last_press = current_press;
+				idle_since = current_press;
 			}
 			if (outGamepadState.buttons.x) {
 				killRadio();
 				dirty_display = true;
 				last_press = current_press;
+				idle_since = current_press;
 			}
+		}
+		if (double(clock() - idle_since) / double(CLOCKS_PER_SEC) > 30.0) {
+			// Change the backlight if idle
+			go2_display_backlight_set(display, (uint32_t)1);
+		} else if (current_press == idle_since) {
+			// It just came out of idle
+			go2_display_backlight_set(display, (uint32_t)50);
 		}
 
 		if (dirty_display) {

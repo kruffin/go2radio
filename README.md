@@ -9,6 +9,7 @@ This program should minimally:
 - [X] Allow the changing of the station using the controller.
 - [ ] Allow changing the volume.
 - [X] Show what station is playing.
+- [X] Lower the backlight while idle to reduce battery use.
 
 ![Go 2 Radio](/docs/go2radio_web.jpg)
 
@@ -30,9 +31,14 @@ Pull down the submodules.
 
 This requires the libgo2 library from: https://github.com/OtherCrashOverride/libgo2 It should already be on the ODroid Go Advance.
 
-Run:
+The program consists of two main parts, the UI application and the softfm application it controls.
+
+To build the UI application run:
 
     make
+
+
+To build the softfm application follow the instructions inside the lib/ngsoftfm/ directory including additional packages. The program expects the softfm program to be in lib/ngsoftfm/build/.
 
 ## Install
 
