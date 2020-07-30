@@ -20,6 +20,8 @@ void go2_present();
 void drawScreen();
 void tuneRadio(int freq);
 void killRadio();
+void volumeUp();
+void volumeDown();
 
 // libgo2 stuff
 go2_gamepad_state_t outGamepadState;
@@ -42,6 +44,11 @@ int MAX_FREQ = 1070;
 int MIN_FREQ = 881;
 int frequency = 881;
 int frequency_temp = 881;
+
+uint32_t brightness_idle = 1;
+uint32_t brightness_active = 50;
+
+int volume_increment = 2; // Amount to increment the volume in percent.
 
 // For handling button inputs
 clock_t last_press;
@@ -73,6 +80,7 @@ int main(int argc, char * argv[]) {
 		if (outGamepadState.buttons.f1) {
 			std::cout << "f1";
 			killRadio();
+			go2_display_backlight_set(display, brightness_active);
 			destroyGo2();
 			destroyUgui();
 			return 0;
@@ -108,6 +116,16 @@ int main(int argc, char * argv[]) {
 					held_since = last_press;
 				}
 			}
+			if (outGamepadState.dpad.up) {
+				volumeUp();
+				last_press = current_press;
+				idle_since = current_press;
+			}
+			if (outGamepadState.dpad.down) {
+				volumeDown();
+				last_press = current_press;
+				idle_since = current_press;
+			}
 
 			if (held_since != -1 && current_press != last_press) {
 				// No buttons held
@@ -141,10 +159,10 @@ int main(int argc, char * argv[]) {
 		}
 		if (double(clock() - idle_since) / double(CLOCKS_PER_SEC) > 30.0) {
 			// Change the backlight if idle
-			go2_display_backlight_set(display, (uint32_t)1);
+			go2_display_backlight_set(display, brightness_idle);
 		} else if (current_press == idle_since) {
 			// It just came out of idle
-			go2_display_backlight_set(display, (uint32_t)50);
+			go2_display_backlight_set(display, brightness_active);
 		}
 
 		if (dirty_display) {
@@ -153,6 +171,18 @@ int main(int argc, char * argv[]) {
 			dirty_display = false;
 		}
 	}
+}
+
+void volumeUp() {
+	char cmd[50];
+	sprintf(cmd, "/usr/bin/amixer -q sset Playback %d%%+ ", volume_increment);
+	system(cmd);
+}
+
+void volumeDown() {
+	char cmd[50];
+	sprintf(cmd, "/usr/bin/amixer -q sset Playback %d%%- ", volume_increment);
+	system(cmd);
 }
 
 void killRadio() {
@@ -256,7 +286,8 @@ void go2SetPixel(UG_S16 x, UG_S16 y, UG_COLOR c) {
 	// std::cout << "drawing pixel og(" << x << "," << y << ") trans(" << xfinal << "," << yfinal << ")" << std::endl;
 	memcpy(dst + (yfinal * go2_surface_stride_get(surface) + xfinal*bytes_per_pixel), (unsigned char*)&c, sizeof(c));
 
-	dirty_display = true;
+	// Take this out since it has the potential to infinite loop if not lucky like I was.
+	//dirty_display = true;
 
 	// std::cout << "drawing pixel " << c << std::endl;
 }
@@ -301,6 +332,10 @@ void drawScreen() {
 	UG_SetForecolor(C_BLACK);
 	char exit[] = "f1=exit";
 	UG_PutString(20, width-28, exit);
+
+	char volText[8];
+	sprintf(volText, " %cvol", char(18));
+	UG_PutString(40 + strlen(exit) * 8, width-38, volText);
 
 	char tuneText[8];
 	sprintf(tuneText, "%ctune%c", char(27), char(26));
