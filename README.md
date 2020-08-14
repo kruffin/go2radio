@@ -25,8 +25,22 @@ The USB dongle can't be used by the odroid user by default; it can only be acces
 
 Now you should be able to access and see the USB device as the odroid user.
 
+**Important:** You'll need to reboot the odroid to have access.
+
 ## Build
 
+### Prereqs
+This assumes a `sudo apt update` has been run recently.
+
+These packages are required to build this program:
+
+    sudo apt install git build-essential
+
+These packages are required to build the ngsoftfm program:
+
+    sudo apt install cmake pkg-config libusb-1.0-0-dev libasound2-dev libboost-all-dev librtlsdr-dev libhackrf-dev libairspy-dev libbladerf-dev
+
+### Get the code
 Pull down the submodules.
 
     git submodule update --init --recursive
@@ -35,12 +49,21 @@ This requires the libgo2 library from: https://github.com/OtherCrashOverride/lib
 
 The program consists of two main parts, the UI application and the softfm application it controls.
 
+### Build go2radio
 To build the UI application run:
 
     make
 
+### Build NGSoftFM
+To build the softfm application detailed instructions are inside the lib/ngsoftfm/ directory including additional packages. The program expects the softfm program to be in lib/ngsoftfm/build/.
 
-To build the softfm application follow the instructions inside the lib/ngsoftfm/ directory including additional packages. The program expects the softfm program to be in lib/ngsoftfm/build/.
+Simplified instructions are here:
+
+    cd lib/ngsoftfm
+    mkdir build
+    cd build
+    cmake ..
+    make
 
 ## Install
 
@@ -84,7 +107,7 @@ Then add an additional system at the end still inside the `<systemList> </system
 
 Note the path `/home/odroid/apps` and create it.
 
-Next create a script like in Option 1, but place it inside the `/home/odroid/apps/` folder instead.
+Next create a script like in Option 1, but place it insie the `/home/odroid/apps` folder instead.
 
 There will be an additional gear menu that has the program in it.
 
@@ -119,3 +142,4 @@ On the first run of the program it will create a configuration file in `~/.go2ra
     softfm_args=freq=%d gain=auto
 
 Feel free to play around with these to obtain different visuals on some of the displayed values (`frequency_display_format`) or increment values.
+
