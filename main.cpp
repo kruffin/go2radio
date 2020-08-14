@@ -41,8 +41,8 @@ UG_GUI gui;
 UG_WINDOW mainWindow;
 
 bool dirty_display = true;
-int frequency = 881;
-int frequency_temp = 881;
+int frequency;
+int frequency_temp;
 
 int volume_increment = 2; // Amount to increment the volume in percent.
 
@@ -77,6 +77,8 @@ int main(int argc, char * argv[]) {
 		progPath += config.softfm_path;
 		config.softfm_path = progPath;
 	}
+
+	frequency = frequency_temp = config.frequency_min;
 
 	std::cout << "program: " << config.softfm_path << std::endl;
 	initGo2();
@@ -224,7 +226,7 @@ void tuneRadio(int freq) {
 			// close(filedes[1]);
 			// close(filedes[0]);
 			char freqStr[50];
-			sprintf(freqStr, config.softfm_args, freq);
+			sprintf(freqStr, config.softfm_args.c_str(), freq);
 			// std::cout << "euid: " << geteuid() << "uid: " << getuid()  << " frequency: " << freqStr << std::endl;
 			execl(config.softfm_path.c_str(), "softfm", "-t", "rtlsdr", "-q", "-c", freqStr, (char *) NULL);
 			std::cerr << "execl() failed to run: " << config.softfm_path << std::endl;
@@ -302,11 +304,12 @@ void go2SetPixel(UG_S16 x, UG_S16 y, UG_COLOR c) {
 }
 
 void format_frequency(int freq, char *output) {
-	int len = sprintf(output, "%d", freq);
+	double tmp = freq/1000000.0;
+	int len = sprintf(output, config.frequency_display_format.c_str(), tmp);
 	// Shift chars by 1 and add a '.'
-	output[len] = output[len-1];
-	output[len-1] = '.';
-	output[len+1] = '\0';
+	// output[len] = output[len-1];
+	// output[len-1] = '.';
+	// output[len+1] = '\0';
 }
 
 void drawScreen() {
@@ -319,7 +322,7 @@ void drawScreen() {
 	UG_PutString(20, 20, title);
 
 	UG_FontSelect(&FONT_32X53);
-	char freq[6];
+	char freq[30];
 	format_frequency(frequency, (char *)freq);
 	UG_PutString(20, width/2-53, freq);
 

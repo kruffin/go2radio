@@ -10,6 +10,8 @@ This program should minimally:
 - [X] Allow changing the volume. Shout out to (https://github.com/zfteam/hotkey_for_oga); stole their trick to alter the volume.
 - [X] Show what station is playing.
 - [X] Lower the backlight while idle to reduce battery use.
+- [X] Read/Write a configuration file to alter running behavior.
+- [ ] Allow presets/bookmarks to be jumped to and added/deleted to make navigating frequencies easier.
 
 ![Go 2 Radio](/docs/go2radio_web.jpg)
 
@@ -85,3 +87,35 @@ Note the path `/home/odroid/apps` and create it.
 Next create a script like in Option 1, but place it inside the `/home/odroid/apps/` folder instead.
 
 There will be an additional gear menu that has the program in it.
+
+## Configuration
+On the first run of the program it will create a configuration file in `~/.go2radio/config`. The following text will be defaulted:
+
+    # Describes how long to wait on inactivity before changing
+    # the brightness level.
+    idle_time=30
+    # A level of 0 means no backlight and 100 is full.
+    brightness_idle=1
+    brightness_active=50
+    # The min/max frequencies in Hz.
+    frequency_min=88100000
+    frequency_max=107000000
+    # How to display the frequency in MHz.
+    frequency_display_format=%.1f
+    # How long to let the softfm program run before attempting
+    # to kill it in seconds.
+    tune_kill_sleep_time=5
+    # How long the tune button must be held before it
+    # transitions to the fast increment speed.
+    tune_increment_trans_time=2
+    # The amount to increment in Hz.
+    tune_increment_normal=100000
+    tune_increment_fast=1000000
+    # The path to the softfm program.
+    softfm_path=lib/ngsoftfm/build/softfm
+    # The arguments to pass to the softfm program specific to
+    # the RTL-SDR inputs; at a minimum it must have:
+    # 'freq=%d' for the correct frequency to be passed.
+    softfm_args=freq=%d gain=auto
+
+Feel free to play around with these to obtain different visuals on some of the displayed values (`frequency_display_format`) or increment values.
