@@ -123,6 +123,7 @@ On the first run of the program it will create a configuration file in `~/.go2ra
     # The min/max frequencies in Hz.
     frequency_min=88100000
     frequency_max=107000000
+    frequency_start=88100000
     # How to display the frequency in MHz.
     frequency_display_format=%.1f
     # How long to let the softfm program run before attempting

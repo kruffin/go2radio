@@ -12,6 +12,7 @@ Config::Config(std::string file) {
 	this->brightness_active = 50;
 	this->frequency_min = 88100000;
 	this->frequency_max = 107000000;
+	this->frequency_start = 88100000;
 	this->frequency_display_format = std::string("%.1f");
 	this->tune_kill_sleep_time = 5.0;
 	this->tune_increment_trans_time = 2.0;
@@ -38,6 +39,7 @@ void Config::save() {
 	configFile << "# The min/max frequencies in Hz." << std::endl;
 	configFile << "frequency_min=" << this->frequency_min << std::endl;
 	configFile << "frequency_max=" << this->frequency_max << std::endl;
+	configFile << "frequency_start=" << this->frequency_start << std::endl;
 	configFile << "# How to display the frequency in MHz." << std::endl;
 	configFile << "frequency_display_format=" << this->frequency_display_format << std::endl;
 	configFile << "# How long to let the softfm program run before attempting" << std::endl;
@@ -91,6 +93,8 @@ bool Config::load() {
 			this->frequency_min = std::stoi(attr_value);
 		} else if (attr_name == "frequency_max") {
 			this->frequency_max = std::stoi(attr_value);
+		} else if (attr_name == "frequency_start") {
+			this->frequency_start = std::stoi(attr_value);
 		} else if (attr_name == "frequency_display_format") {
 			this->frequency_display_format = attr_value;
 		} else if (attr_name == "tune_kill_sleep_time") {
@@ -121,6 +125,7 @@ void Config::print_config() {
 	std::cout << "brightness_active=" << this->brightness_active << std::endl;
 	std::cout << "frequency_min=" << this->frequency_min << std::endl;
 	std::cout << "frequency_max=" << this->frequency_max << std::endl;
+	std::cout << "frequency_start=" << this->frequency_start << std::endl;
 	std::cout << "frequency_display_format=" << this->frequency_display_format << std::endl;
 	std::cout << "tune_kill_sleep_time=" << this->tune_kill_sleep_time << std::endl;
 	std::cout << "tune_increment_trans_time=" << this->tune_increment_trans_time << std::endl;

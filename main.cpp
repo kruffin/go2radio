@@ -78,7 +78,7 @@ int main(int argc, char * argv[]) {
 		config.softfm_path = progPath;
 	}
 
-	frequency = frequency_temp = config.frequency_min;
+	frequency = frequency_temp = config.frequency_start;
 
 	std::cout << "program: " << config.softfm_path << std::endl;
 	initGo2();

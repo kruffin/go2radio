@@ -8,6 +8,7 @@ public:
 	int brightness_active;
 	int frequency_min;
 	int frequency_max;
+	int frequency_start;
 	std::string frequency_display_format;
 	double tune_kill_sleep_time;
 	double tune_increment_trans_time;
