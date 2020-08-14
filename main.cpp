@@ -11,6 +11,7 @@
 namespace fs = std::filesystem::__cxx11;
 
 #include "lib/ugui/ugui.h"
+#include "Config.h"
 
 void initGo2();
 void destroyGo2();
@@ -40,13 +41,8 @@ UG_GUI gui;
 UG_WINDOW mainWindow;
 
 bool dirty_display = true;
-int MAX_FREQ = 1070;
-int MIN_FREQ = 881;
 int frequency = 881;
 int frequency_temp = 881;
-
-uint32_t brightness_idle = 1;
-uint32_t brightness_active = 50;
 
 int volume_increment = 2; // Amount to increment the volume in percent.
 
@@ -58,18 +54,31 @@ clock_t idle_since;
 
 clock_t run_time;
 
-char fm_program_relative[] = "lib/ngsoftfm/build/softfm";
-char fm_program_args[] = "-t rtlsdr -c %d00000";
 pid_t fm_pid = -1;
-const char *fm_program;
+
+// Configuration
+Config config = Config("");
 
 int main(int argc, char * argv[]) {
-	fs::path progPath = fs::path(argv[0]);
-	progPath.remove_filename();
-	progPath += fm_program_relative;
-	fm_program = progPath.c_str();
+	char dir[1024];
+	sprintf(dir, "%s/.go2radio/config", std::getenv("HOME"));
+	config.file_path = std::string(dir);
+	system("mkdir -p ~/.go2radio");
+	if (!config.load()) {
+		// If it doesn't exist create it.
+		config.save();
+	}
+	config.print_config();
 
-	// std::cout << argv[0] << "|" << fm_program << std::endl;
+	if (config.softfm_path.find('/') != 0) {
+		// It's a relative path, turn into absolute.
+		fs::path progPath = fs::path(argv[0]);
+		progPath.remove_filename();
+		progPath += config.softfm_path;
+		config.softfm_path = progPath;
+	}
+
+	std::cout << "program: " << config.softfm_path << std::endl;
 	initGo2();
 	initUgui();
 	last_press = clock();
@@ -80,7 +89,7 @@ int main(int argc, char * argv[]) {
 		if (outGamepadState.buttons.f1) {
 			std::cout << "f1";
 			killRadio();
-			go2_display_backlight_set(display, brightness_active);
+			go2_display_backlight_set(display, (uint32_t)config.brightness_active);
 			destroyGo2();
 			destroyUgui();
 			return 0;
@@ -88,14 +97,14 @@ int main(int argc, char * argv[]) {
 		current_press = clock();
 		double diff = double(current_press - last_press) / double(CLOCKS_PER_SEC);
 		if (diff > 0.15) {
-			int increment = 1;
-			if (held_since != -1 && double(current_press - held_since) / double(CLOCKS_PER_SEC) > 2.0) {
-				increment = 10;
+			int increment = config.tune_increment_normal;
+			if (held_since != -1 && double(current_press - held_since) / double(CLOCKS_PER_SEC) > config.tune_increment_trans_time) {
+				increment = config.tune_increment_fast;
 			}
 			if (outGamepadState.dpad.left) {
 				frequency_temp -= increment;
-				if (frequency_temp < MIN_FREQ) {
-					frequency_temp = MAX_FREQ;
+				if (frequency_temp < config.frequency_min) {
+					frequency_temp = config.frequency_max;
 				}
 				dirty_display = true;
 				last_press = current_press;
@@ -106,8 +115,8 @@ int main(int argc, char * argv[]) {
 			}
 			if (outGamepadState.dpad.right) {
 				frequency_temp += increment;
-				if (frequency_temp > MAX_FREQ) {
-					frequency_temp = MIN_FREQ;
+				if (frequency_temp > config.frequency_max) {
+					frequency_temp = config.frequency_min;
 				}
 				dirty_display = true;
 				last_press = current_press;
@@ -157,12 +166,12 @@ int main(int argc, char * argv[]) {
 				idle_since = current_press;
 			}
 		}
-		if (double(clock() - idle_since) / double(CLOCKS_PER_SEC) > 30.0) {
+		if (double(clock() - idle_since) / double(CLOCKS_PER_SEC) > config.idle_time) {
 			// Change the backlight if idle
-			go2_display_backlight_set(display, brightness_idle);
+			go2_display_backlight_set(display, (uint32_t)config.brightness_idle);
 		} else if (current_press == idle_since) {
 			// It just came out of idle
-			go2_display_backlight_set(display, brightness_active);
+			go2_display_backlight_set(display, (uint32_t)config.brightness_active);
 		}
 
 		if (dirty_display) {
@@ -187,8 +196,8 @@ void volumeDown() {
 
 void killRadio() {
 	if (fm_pid != -1) {
-		// Kill it
-		while( double(clock() - run_time)/double(CLOCKS_PER_SEC) < 5.0 || -1 == kill(fm_pid, SIGKILL) ) {
+		// Kill it, but make sure softfm has had time to register it's sigterm handler.
+		while( double(clock() - run_time)/double(CLOCKS_PER_SEC) < config.tune_kill_sleep_time || -1 == kill(fm_pid, SIGKILL) ) {
 			// std::cerr << "Failed to kill process [" << fm_pid << "] " << std::strerror(errno);
 		}
 		fm_pid = -1;
@@ -215,10 +224,10 @@ void tuneRadio(int freq) {
 			// close(filedes[1]);
 			// close(filedes[0]);
 			char freqStr[50];
-			sprintf(freqStr, "freq=%d00000", freq);
+			sprintf(freqStr, config.softfm_args, freq);
 			// std::cout << "euid: " << geteuid() << "uid: " << getuid()  << " frequency: " << freqStr << std::endl;
-			execl(fm_program, "softfm", "-t", "rtlsdr", "-q", "-c", freqStr, (char *) NULL);
-			std::cerr << "execl() failed to run: " << fm_program << std::endl;
+			execl(config.softfm_path.c_str(), "softfm", "-t", "rtlsdr", "-q", "-c", freqStr, (char *) NULL);
+			std::cerr << "execl() failed to run: " << config.softfm_path << std::endl;
 			exit(1);
 		// default:
 			// close(filedes[1]);
