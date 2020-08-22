@@ -473,11 +473,11 @@ void destroyUgui() {
 }
 
 void alterBookmarks() {
-	if (bmarks.isMarked(frequency)) {
-		bmarks.remove(frequency);
+	if (bmarks.isMarked(frequency_temp)) {
+		bmarks.remove(frequency_temp);
 		bmarks.save();
 	} else {
-		bmarks.add(frequency);
+		bmarks.add(frequency_temp);
 		bmarks.save();
 	}
 }
