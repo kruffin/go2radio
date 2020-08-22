@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 
 #include "StationBookmarks.h"
 
@@ -26,6 +27,8 @@ void StationBookmarks::add(int bmark) {
 	}
 
 	this->bookmarks.push_back(bmark);
+
+	std::sort(this->bookmarks.begin(), this->bookmarks.end());
 };
 void StationBookmarks::remove(int bmark) {
 	int idx = this->indexOf(bmark);
