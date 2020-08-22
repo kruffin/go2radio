@@ -11,7 +11,7 @@ This program should minimally:
 - [X] Show what station is playing.
 - [X] Lower the backlight while idle to reduce battery use.
 - [X] Read/Write a configuration file to alter running behavior.
-- [ ] Allow presets/bookmarks to be jumped to and added/deleted to make navigating frequencies easier.
+- [X] Allow presets/bookmarks to be jumped to and added/deleted to make navigating frequencies easier.
 
 ![Go 2 Radio](/docs/go2radio_web.jpg)
 
