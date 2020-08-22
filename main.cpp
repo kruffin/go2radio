@@ -12,6 +12,7 @@ namespace fs = std::filesystem::__cxx11;
 
 #include "lib/ugui/ugui.h"
 #include "Config.h"
+#include "StationBookmarks.h"
 
 void initGo2();
 void destroyGo2();
@@ -23,6 +24,9 @@ void tuneRadio(int freq);
 void killRadio();
 void volumeUp();
 void volumeDown();
+void alterBookmarks();
+void tempNextBookmark();
+void tempPrevBookmark();
 
 // libgo2 stuff
 go2_gamepad_state_t outGamepadState;
@@ -39,6 +43,7 @@ int bytes_per_pixel;
 // ugui stuff
 UG_GUI gui;
 UG_WINDOW mainWindow;
+bool show_help = false;
 
 bool dirty_display = true;
 int frequency;
@@ -58,17 +63,27 @@ pid_t fm_pid = -1;
 
 // Configuration
 Config config = Config("");
+StationBookmarks bmarks = StationBookmarks("");
+
 
 int main(int argc, char * argv[]) {
 	char dir[1024];
 	sprintf(dir, "%s/.go2radio/config", std::getenv("HOME"));
 	config.file_path = std::string(dir);
+
+	sprintf(dir, "%s/.go2radio/stations", std::getenv("HOME"));
+	bmarks.file_path = std::string(dir);
+
 	system("mkdir -p ~/.go2radio");
 	if (!config.load()) {
 		// If it doesn't exist create it.
 		config.save();
 	}
 	config.print_config();
+
+	if (!bmarks.load()) {
+		std::cout << "No saved bookmarks found: " << bmarks.file_path << std::endl;
+	}
 
 	if (config.softfm_path.find('/') != 0) {
 		// It's a relative path, turn into absolute.
@@ -138,12 +153,6 @@ int main(int argc, char * argv[]) {
 				idle_since = current_press;
 			}
 
-			if (held_since != -1 && current_press != last_press) {
-				// No buttons held
-				held_since = -1;
-				//tuneRadio(frequency);
-				// std::cout << "held since reset c(" << current_press << ") l(" << last_press << ")" << std::endl;
-			}
 
 			if (outGamepadState.buttons.a) {
 				if (! (frequency == frequency_temp && -1 != fm_pid)) {
@@ -166,6 +175,56 @@ int main(int argc, char * argv[]) {
 				dirty_display = true;
 				last_press = current_press;
 				idle_since = current_press;
+			}
+			if (outGamepadState.buttons.y) {
+				if (-1 == held_since) {
+					alterBookmarks();
+					dirty_display = true;
+					held_since = current_press;
+				}
+				
+				last_press = current_press;
+				idle_since = current_press;
+			}
+
+			if (outGamepadState.buttons.top_left) {
+				if (-1 == held_since) {
+					tempPrevBookmark();
+					dirty_display = true;
+					held_since = current_press;
+				}
+				
+				last_press = current_press;
+				idle_since = current_press;
+			}
+
+			if (outGamepadState.buttons.top_right) {
+				if (-1 == held_since) {
+					tempNextBookmark();
+					dirty_display = true;
+					held_since = current_press;
+				}
+				
+				last_press = current_press;
+				idle_since = current_press;
+			}
+
+			if (outGamepadState.buttons.f2) {
+				if (-1 == held_since) {
+					show_help = !show_help;
+					dirty_display = true;
+					held_since = current_press;
+				}
+				
+				last_press = current_press;
+				idle_since = current_press;
+			}
+
+			if (held_since != -1 && current_press != last_press) {
+				// No buttons held
+				held_since = -1;
+				//tuneRadio(frequency);
+				// std::cout << "held since reset c(" << current_press << ") l(" << last_press << ")" << std::endl;
 			}
 		}
 		if (double(clock() - idle_since) / double(CLOCKS_PER_SEC) > config.idle_time) {
@@ -340,22 +399,67 @@ void drawScreen() {
 		UG_PutString(height-36 - strlen(music)*36, 20, music);
 	}
 
+	// Draw bookmarks
+	// std::cout << "Number of stations: " << bmarks.size() << std::endl;
+	int startx = 20;
+	int starty = width/2 + 30;
+
+	UG_FontSelect(&FONT_8X14);
+	UG_COLOR bg;
+	UG_COLOR fg;
+	for (int i = 0; i < bmarks.size(); ++i) {
+		int b_freq = bmarks.get(i);
+		if (frequency_temp == b_freq) {
+			fg = C_BLACK;
+			bg = C_OLIVE_DRAB;
+		} else {
+			fg = C_DARK_OLIVE_GREEN;
+			bg = C_OLIVE;
+		}
+		UG_SetForecolor(fg);
+		UG_SetBackcolor(bg);
+		format_frequency(bmarks.get(i), (char *)freq);
+		int row = i / 4;
+		int col = i - row * 4;
+		int curx = col * 110 + startx;
+		int cury = row * 20 + starty;
+		// std::cout << "Printing (" << col << "," << row << "): " << freq << std::endl;
+		UG_FillRoundFrame(curx - 2, cury - 1, curx + 90, cury + 14, 5, bg);
+		UG_PutString(curx, cury, freq);
+	}
+
 	UG_FontSelect(&FONT_8X8);
 	UG_SetForecolor(C_BLACK);
-	char exit[] = "f1=exit";
-	UG_PutString(20, width-28, exit);
+	UG_SetBackcolor(C_DARK_GOLDEN_ROD);	
 
-	char volText[8];
-	sprintf(volText, " %cvol", char(18));
-	UG_PutString(40 + strlen(exit) * 8, width-38, volText);
+	char helpText[] = "f2=help";
+	UG_PutString(height - strlen(helpText) * 9, width-9, helpText);
 
-	char tuneText[8];
-	sprintf(tuneText, "%ctune%c", char(27), char(26));
-	// std::cout << "! = " << int('!') << std::endl;
-	UG_PutString(40 + strlen(exit) * 8, width-28, tuneText);
+	if (show_help) {
+		UG_FontSelect(&FONT_8X8);
+		UG_SetForecolor(C_BLACK);
+		UG_SetBackcolor(C_DARK_GOLDEN_ROD);
+		char exit[] = "f1=exit";
+		UG_PutString(20, width-28, exit);
 
-	char selectText[] = "a=select  b=cancel  x=stop tune";
-	UG_PutString(60 + (strlen(exit) + strlen(tuneText)) * 8, width-28, selectText);
+		char volText[8];
+		sprintf(volText, " %cvol", char(18));
+		UG_PutString(40 + strlen(exit) * 8, width-38, volText);
+
+		char tuneText[8];
+		sprintf(tuneText, "%ctune%c", char(27), char(26));
+		// std::cout << "! = " << int('!') << std::endl;
+		UG_PutString(40 + strlen(exit) * 8, width-28, tuneText);
+
+		char selectText[] = "a=select  b=cancel  x=stop tune";
+		UG_PutString(60 + (strlen(exit) + strlen(tuneText)) * 8, width-28, selectText);
+
+		if (bmarks.size() > 0) {
+			char bookmarkText[65];
+			sprintf(bookmarkText, "bookmarks: %cleft trigger,right trigger%c,y=add/remove", char(27), char(26));
+			UG_PutString(0, width - 48, bookmarkText);
+		}
+	}
 }
 
 void initUgui() {
@@ -366,4 +470,28 @@ void initUgui() {
 
 void destroyUgui() {
 
+}
+
+void alterBookmarks() {
+	if (bmarks.isMarked(frequency)) {
+		bmarks.remove(frequency);
+		bmarks.save();
+	} else {
+		bmarks.add(frequency);
+		bmarks.save();
+	}
+}
+
+void tempNextBookmark() { 
+	int tmp = bmarks.next(frequency_temp);
+	if (-1 != tmp) {
+		frequency_temp = tmp;
+	}
+}
+
+void tempPrevBookmark() {
+	int tmp = bmarks.prev(frequency_temp);
+	if (-1 != tmp) {
+		frequency_temp = tmp;
+	}
 }
