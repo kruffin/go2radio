@@ -401,8 +401,11 @@ void drawScreen() {
 
 	// Draw bookmarks
 	// std::cout << "Number of stations: " << bmarks.size() << std::endl;
-	int startx = 20;
+	int startx = config.bookmark_margin;
 	int starty = width/2 + 30;
+
+	int mark_width = (height - config.bookmark_margin * 2 - config.bookmark_separation * (config.bookmark_cols - 1)) / config.bookmark_cols;
+
 
 	UG_FontSelect(&FONT_8X14);
 	UG_COLOR bg;
@@ -419,13 +422,13 @@ void drawScreen() {
 		UG_SetForecolor(fg);
 		UG_SetBackcolor(bg);
 		format_frequency(bmarks.get(i), (char *)freq);
-		int row = i / 4;
-		int col = i - row * 4;
-		int curx = col * 110 + startx;
+		int row = i / config.bookmark_cols;
+		int col = i - row * config.bookmark_cols;
+		int curx = col * mark_width + col * config.bookmark_separation + startx;
 		int cury = row * 20 + starty;
 		// std::cout << "Printing (" << col << "," << row << "): " << freq << std::endl;
-		UG_FillRoundFrame(curx - 2, cury - 1, curx + 90, cury + 14, 5, bg);
-		UG_PutString(curx, cury, freq);
+		UG_FillRoundFrame(curx, cury, curx + mark_width, cury + 14, 5, bg);
+		UG_PutString(curx + 2, cury + 1, freq);
 	}
 
 	UG_FontSelect(&FONT_8X8);

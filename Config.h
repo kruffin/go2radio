@@ -17,6 +17,10 @@ public:
 	std::string softfm_path;
 	std::string softfm_args;
 
+	int bookmark_margin;
+	int bookmark_cols;
+	int bookmark_separation;
+
 	Config(std::string file);
 	~Config();
 	void save();

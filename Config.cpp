@@ -20,6 +20,10 @@ Config::Config(std::string file) {
 	this->tune_increment_fast = 1000000;
 	this->softfm_path = std::string("lib/ngsoftfm/build/softfm");
 	this->softfm_args = std::string("freq=%d gain=auto");
+
+	this->bookmark_margin = 20;
+	this->bookmark_cols = 7;
+	this->bookmark_separation = 5;
 }
 
 Config::~Config() {
@@ -57,6 +61,13 @@ void Config::save() {
 	configFile << "# the RTL-SDR inputs; at a minimum it must have:" << std::endl;
 	configFile << "# 'freq=%d' for the correct frequency to be passed." << std::endl;
 	configFile << "softfm_args=" << this->softfm_args << std::endl;
+
+	configFile << "# How much (in pixels) to indent on both sides." << std::endl;
+	configFile << "bookmark_margin=" << this->bookmark_margin << std::endl;
+	configFile << "# How many bookmarked stations to show in one row." << std::endl;
+	configFile << "bookmark_cols=" << this->bookmark_cols << std::endl;
+	configFile << "# How many pixels to space between bookmarked stations." << std::endl;
+	configFile << "bookmark_separation=" << this->bookmark_separation << std::endl;
 
 	configFile.close();
 }
@@ -109,6 +120,12 @@ bool Config::load() {
 			this->softfm_path = attr_value;
 		} else if (attr_name == "softfm_args") {
 			this->softfm_args = attr_value;
+		} else if (attr_name == "bookmark_margin") {
+			this->bookmark_margin = std::stoi(attr_value);
+		} else if (attr_name == "bookmark_cols") {
+			this->bookmark_cols = std::stoi(attr_value);
+		} else if (attr_name == "bookmark_separation") {
+			this->bookmark_separation = std::stoi(attr_value);
 		} else {
 			std::cout << "No match for (" << attr_name << ") = (" << attr_value << ")" << std::endl;
 		}

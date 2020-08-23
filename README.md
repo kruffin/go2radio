@@ -141,6 +141,12 @@ On the first run of the program it will create a configuration file in `~/.go2ra
     # the RTL-SDR inputs; at a minimum it must have:
     # 'freq=%d' for the correct frequency to be passed.
     softfm_args=freq=%d gain=auto
+    # How much (in pixels) to indent on both sides.
+    bookmark_margin=20
+    # How many bookmarked stations to show in one row.
+    bookmark_cols=7
+    # How many pixels to space between bookmarked stations.
+    bookmark_separation=5
 
 Feel free to play around with these to obtain different visuals on some of the displayed values (`frequency_display_format`) or increment values.
 
