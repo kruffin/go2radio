@@ -19,7 +19,7 @@ This program should minimally:
 This also requires some RTL-SDR USB device to plug into the Go Advance. I'm using one from Adafruit from here: https://www.adafruit.com/product/1497 There are tons of these things around, so that particular one isn't a requirement; but you must have one.
 
 ## Configure RTL-SDR
-The USB dongle can't be used by the odroid user by default; it can only be accessed with root privileges. The first part of this involves a set of udev rules from the `docs/rtl-sdr.rules` file. Copy these into `/ect/udev/rules.d/` folder. Note that all of the rules allow access if a user is in the `plugdev` group. So let's add the odroid user to that group:
+The USB dongle can't be used by the odroid user by default; it can only be accessed with root privileges. The first part of this involves a set of udev rules from the `docs/rtl-sdr.rules` file. Copy these into `/etc/udev/rules.d/` folder. Note that all of the rules allow access if a user is in the `plugdev` group. So let's add the odroid user to that group:
 
      sudo usermod -a -G plugdev odroid
 
@@ -30,11 +30,27 @@ Now you should be able to access and see the USB device as the odroid user.
 ## Build
 
 ### Prereqs
-This assumes a `sudo apt update` has been run recently.
+This assumes a `sudo apt update` has been run recently. Unfortunately, the latest image HardKernel has put out has regressed in Ubuntu version from 20.04 to 18.04. This means there are some extra steps that need to be taken to get a more recent version of gcc.
 
 These packages are required to build this program:
 
     sudo apt install git build-essential
+
+For Ubuntu 18.04 we also need to install gcc and g++ version 9. The steps are (see here for more information - https://linuxize.com/post/how-to-install-gcc-compiler-on-ubuntu-18-04/):
+
+    sudo apt install software-properties-common
+    sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+    sudo apt install gcc-9 g++-9
+    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90 --slave /usr/bin/g++ g++ /usr/bin/g++-9 --slave /usr/bin/gcov gcov /usr/bin/gcov-9
+
+Additionally, the libbladerf-dev version in Ubuntu 18 is from 2016; we need the latest so:
+
+    sudo add-apt-repository ppa:bladerf/bladerf
+
+If you have already installed the libbladerf-dev package, then upgrade it via:
+
+    sudo apt upgrade
+
 
 These packages are required to build the ngsoftfm program:
 
